@@ -33,18 +33,66 @@ class Scheduler:
         self.io_wait_queue: list[Process] = [] # The list of processes that are waiting for I/O to complete
         self.finish_queue: list[Process] = [] # The list of processes that have completed their CPU cycles
 
+    # Select the next process to run based on the scheduler type
     def select(self):
-        pass
-
+        # First come First serve: Processes with the smallest arrival time are selected first
+        if self.scheduler_type == "FF":
+            return min(self.ready_queue, key=lambda p: p.arrival_time, default=None)
+            
     def tick(self):
-        # 1) Check for new arrivals and move them to the ready queue
+        # 1) Check for new arrivals and move them to the ready queue 
+        self._update_arrival_queue()
+
+        # 2) Update the I/O wait queue and move finished I/O processes back to the ready queue
+        self._update_io_queue()
+
+        # 3) Update the current CPU process and select a new one if the CPU is empty
+        self._update_cpu_process()
+
+        # 4) Update the wait time for all processes in the ready queue
+        self._update_ready_queue()
+
+        # 5) Increment the clock
+        self.clock += 1
+
+    def _update_arrival_queue(self):
         for process in self.arrival_queue[:]: # [:] = Loop through a copy of the list so removed items don't mess up the looping
             if process.arrival_time == self.clock:
                 self.ready_queue.append(process)
                 self.arrival_queue.remove(process)
 
-        # 2) Increment the clock
-        self.clock += 1
+    def _update_io_queue(self):
+        for process in self.io_wait_queue[:]: # [:] = Loop through a copy of the list
+            # Move finsihed I/O processes back to the ready queue, and update values if not done
+            if process.io_ticks_left <= 0:
+                self.ready_queue.append(process)
+                self.io_wait_queue.remove(process)
+            else:
+                process.io_ticks_left -= 1
+                process.wait_time += 1
+
+    def _update_ready_queue(self):
+        for process in self.ready_queue:
+            process.wait_time += 1
+
+    def _update_cpu_process(self):
+        # 1) Select a new process to run if the CPU is empty
+        if not self.cpu:
+            self.cpu = self.select()
+            if self.cpu: # Remove from ready if selected
+                self.ready_queue.remove(self.cpu)
+
+                if self.cpu.start_time is None: # If the process has not started yet (io bursts would make it false)
+                    self.cpu.start_time = self.clock # Set the start time of the process
+
+        # 2) Update the CPU process
+        if self.cpu:
+            self.cpu.cycles_left -= 1 
+            if self.cpu.cycles_left <= 0: # If the process has finished its CPU cycles
+                self.cpu.finish_time = self.clock + 1 # Finish is next tick because the process is still running this tick
+                self.finish_queue.append(self.cpu)
+                self.cpu = None 
+
 
 #========================================================#
 #==================== Main Function =====================#
@@ -78,7 +126,12 @@ def main():
             if (name):
                 arrival_time = int(row[1])
                 cycles_needed = int(row[2])
-                processes.append(Process(name, arrival_time, cycles_needed))
+                processes.append(Process(
+                    name=name, 
+                    arrival_time=arrival_time, 
+                    cycles_needed=cycles_needed, 
+                    cycles_left=cycles_needed
+                ))
             else:
                 io_bursts = (int(row[1]), int(row[2])) # Tuple of (wait start, duration)
                 processes[-1].io_bursts.append(io_bursts) # Add the I/O burst to the last process in the list
@@ -92,12 +145,15 @@ def main():
     scheduler = Scheduler(processes, args.s, args.q)
 
     # Temp print
-    for i in range(10):
+    for i in range(20):
         scheduler.tick()
-        print(f"Clock: {scheduler.clock}")
-        print(f"Arrival Queue: {[p.name for p in scheduler.arrival_queue]}")
-        print(f"Ready Queue: {[p.name for p in scheduler.ready_queue]}")
-        print()
+        cpu = f"{scheduler.cpu.name} (left {scheduler.cpu.cycles_left})" if scheduler.cpu else "idle"
+        ready = ", ".join(f"{p.name}(wait {p.wait_time})" for p in scheduler.ready_queue) or "empty"
+        io = ", ".join(f"{p.name}(left {p.io_ticks_left})" for p in scheduler.io_wait_queue) or "empty"
+        print(f"Tick {scheduler.clock:>3} | CPU: {cpu:<12} | Ready: {ready} | I/O: {io}")
+
+
+
 
 
 
