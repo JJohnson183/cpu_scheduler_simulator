@@ -12,6 +12,7 @@ class Process:
     start_time: int | None = None # The tick when the process first starts running
     finish_time: int | None = None # The tick when the process finishes
     wait_time: int = 0 # The number of ticks spent in the Ready and I/O queues
+    priority: int = 0 # The priority of the process (for FB scheduler)
 
     cycles_needed: int = 0 # How many ticks are needed to complete the process
     cycles_left: int = 0 # How many ticks are left to complete the process
@@ -68,6 +69,11 @@ class Scheduler:
         # Round Robin: Processes are selected in a cycle and run for (time quantum) ticks before being preempted
         if self.scheduler_type == "RR":
             return self.ready_queue[0] if self.ready_queue else None # Just returns the first process in the queue
+
+        # Feedback: Processes are selected like Round Robin, but when a process is prempted the priority increases and lower priority processes are selected first
+        if self.scheduler_type == "FB":
+            return min(self.ready_queue, key=lambda p: p.priority, default=None)
+
 
     def _print_tick(self):
         row = f"{self.clock:>3}:"
@@ -174,8 +180,19 @@ class Scheduler:
                 self.cpu = None
 
     def _check_time_quantum(self):
-        # Return the current process to the ready queue if has went through it's full turn with the cpu (For RR scheduler)
-        if self.cpu and self.scheduler_type == "RR" and self.cpu.turn_cycles >= self.time_quantum:
+        # 1) Exit if the scheduler is not RR or FB, or if there is no process on the cpu
+        if not self.cpu or self.scheduler_type not in ["RR", "FB"]: return
+
+        # 2) Define the time the current process is allowed to run on the cpu (time quantum)
+        quantum = self.time_quantum
+        if self.scheduler_type == "FB": 
+            quantum = self.time_quantum ** self.cpu.priority # Each FB level gets a longer turn
+
+        # 3) Return the current process to the ready queue if has went through it's full turn with the cpu
+        if self.cpu.turn_cycles >= quantum:
+            # (Feedback scheduler) Increase the priority of the process that was preempted, only if there are any processes in the ready queue
+            if self.scheduler_type == "FB" and self.ready_queue:
+                self.cpu.priority += 1
             self.ready_queue.append(self.cpu)
             self.cpu = None
 
