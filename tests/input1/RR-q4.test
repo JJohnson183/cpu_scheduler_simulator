@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$script_dir/../run_scheduler_test.sh" "RR" "$script_dir/in.csv" "$script_dir/RR-q4.csv" "-q" "4"
