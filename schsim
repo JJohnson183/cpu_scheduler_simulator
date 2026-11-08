@@ -1,0 +1,26 @@
+# By: Jordan Johnson
+import argparse
+
+# Command line arguments:
+# -v                        (Optional) verbose mode to print the results tick by tick
+# -s <FF|RR|SP|SR|HR|FB>    (Required) What type of scheduler to simulate 
+# -q <ticks>                (Optional) Time quantum which is how many ticks per turn (for RR scheduler)
+# <input file>              (Required) File containing the processes to simulate
+# <output file>             (Required) File to write the results of the simulation to
+def main():
+    # 1) Extract command line arguments
+    parser = argparse.ArgumentParser(description="CPU scheduler simulator")
+    parser.add_argument("-v", action="store_true", help="print results tick by tick")
+    parser.add_argument("-s", choices=["FF", "RR", "SP", "SR", "HR", "FB"], default="FF", help="scheduler type")
+    parser.add_argument("-q", type=int, default=1, help="Total ticks per turn (RR)")
+    parser.add_argument("input_file", help="file with the processes to simulate")
+    parser.add_argument("output_file", help="file to write results to")
+    args = parser.parse_args()
+
+    print(args.v, args.s, args.q, args.input_file, args.output_file)
+
+
+
+
+if __name__ == "__main__":
+    main()
