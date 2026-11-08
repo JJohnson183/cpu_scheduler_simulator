@@ -126,10 +126,7 @@ def main():
     parser.add_argument("output_file", help="file to write results to")
     args = parser.parse_args()
 
-    print(args.v, args.s, args.q, args.input_file, args.output_file)
-    print()
-
-    #2) Read processes from input file and put them into process objects
+    # 2) Read processes from input file and put them into process objects
     processes = []
     with open(args.input_file, "r", newline="") as f:
         for row in csv.reader(f, skipinitialspace=True):
@@ -150,25 +147,26 @@ def main():
                 io_bursts = (int(row[1]), int(row[2])) # Tuple of (wait start, duration)
                 processes[-1].io_bursts.append(io_bursts) # Add the I/O burst to the last process in the list
             
-    # Temp print
-    for p in processes:
-        print(p)
-    print()
-
-    #3) Create the scheduler object and run the simulation (Sent copy to know when all are finished)
+    # 3) Create the scheduler object and run the simulation (Sent copy to know when all are finished)
     scheduler = Scheduler(processes[:], args.s, args.q)
-
     while len(scheduler.finish_queue) < len(processes): # While not all processes are finished
         scheduler.tick()
 
-        # Temp print
-        cpu = f"{scheduler.cpu.name} (left {scheduler.cpu.cycles_left})" if scheduler.cpu else "idle"
-        ready = ", ".join(f"{p.name}(wait {p.wait_time})" for p in scheduler.ready_queue) or "empty"
-        io = ", ".join(f"{p.name}(left {p.io_ticks_left})" for p in scheduler.io_wait_queue) or "empty"
-        print(f"Tick {scheduler.clock:>3} | CPU: {cpu:<12} | Ready: {ready} | I/O: {io}")
+    # 4) Write the results to the output file
+    with open(args.output_file, "w", newline="") as f:
+        f.write('"name", "arrival time", "service time", "start time", "total wait time", "finish time", "turnaround time", "normalized turnaround"\n')
 
+        total_turnaround = 0
+        total_normalized = 0
+        for p in scheduler.finish_queue:
+            turnaround_time = p.finish_time - p.arrival_time  # Time it took from start to finish
+            normalized_turnaround = turnaround_time / p.cycles_needed # turnaround_time compared to how many cycles it needed to complete
+            total_turnaround += turnaround_time
+            total_normalized += normalized_turnaround
+            f.write(f'"{p.name}", {p.arrival_time}, {p.cycles_needed}, {p.start_time}, {p.wait_time}, {p.finish_time}, {turnaround_time}, {normalized_turnaround:.2f}\n')
 
-
+        # Average turnaround and normalized turnaround times
+        f.write(f"{total_turnaround / len(processes):.2f}, {total_normalized / len(processes):.2f}\n")
 
 
 
