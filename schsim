@@ -58,6 +58,9 @@ class Scheduler:
             # Response ratio = (wait time + cycles needed) / cycles needed
             return max(self.ready_queue, key=lambda p: (p.wait_time + p.cycles_needed) / p.cycles_needed, default=None)
 
+        # Shortest Remaining Time: Processes with the smallest cycles left are selected first
+        if self.scheduler_type == "SR": 
+            return min(self.ready_queue, key=lambda p: p.cycles_left, default=None)
 
     def _print_tick(self):
         row = f"{self.clock:>3}:"
@@ -77,20 +80,23 @@ class Scheduler:
         # 2) Update the I/O wait queue and move finished I/O processes back to the ready queue
         self._update_io_queue()
 
-        # 3) Select a new cpu process if the CPU is empty
+        # 3) Remove the current CPU process if it is preempted by a new process (after the arrival and I/O updates so teh ready queue is up to date)
+        self._remove_running_process()
+
+        # 4) Select a new cpu process if the CPU is empty
         self._select_next_cpu_process()
 
-        # 4) Print the current tick if verbose mode is enabled (Here to )
+        # 5) Print the current tick if verbose mode is enabled
         if self.verbose:
             self._print_tick()
 
-        # 5) Update the current CPU process
+        # 6) Update the current CPU process
         self._update_cpu_process()
 
-        # 6) Update the wait time for all processes in the ready queue
+        # 7) Update the wait time for all processes in the ready queue
         self._update_ready_queue()
 
-        # 7) Increment the clock
+        # 8) Increment the clock
         self.clock += 1
 
     def _update_arrival_queue(self):
@@ -112,6 +118,14 @@ class Scheduler:
     def _update_ready_queue(self):
         for process in self.ready_queue:
             process.wait_time += 1
+
+    def _remove_running_process(self):
+        if self.cpu:
+            if self.scheduler_type == "SR":
+                # If any process requires less time than the one on the cpu, put the one on the cpu back to the ready queue
+                if any(p.cycles_left < self.cpu.cycles_left for p in self.ready_queue):
+                    self.ready_queue.append(self.cpu)
+                    self.cpu = None 
 
     def _select_next_cpu_process(self):
         # Select a new process to run if the CPU is empty
