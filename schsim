@@ -92,6 +92,20 @@ class Scheduler:
                 self.cpu.finish_time = self.clock + 1 # Finish is next tick because the process is still running this tick
                 self.finish_queue.append(self.cpu)
                 self.cpu = None 
+                return
+
+        # 3) Check if the CPU process needs to do I/O
+        if self.cpu and self.cpu.io_bursts:
+            next_io_burst = self.cpu.io_bursts[0] # Get the next I/O burst
+            cycles_done = self.cpu.cycles_needed - self.cpu.cycles_left
+
+            # Check if the IO burst should start with the amount of cycles completed so far
+            if next_io_burst[0] == cycles_done: 
+                self.cpu.io_ticks_left = next_io_burst[1] # Set how many ticks the the process will be in I/O queue
+                self.cpu.io_bursts.pop(0)
+                self.io_wait_queue.append(self.cpu)
+                self.cpu = None
+            
 
 
 #========================================================#
@@ -141,12 +155,13 @@ def main():
         print(p)
     print()
 
-    #3) Create the scheduler object and run the simulation
-    scheduler = Scheduler(processes, args.s, args.q)
+    #3) Create the scheduler object and run the simulation (Sent copy to know when all are finished)
+    scheduler = Scheduler(processes[:], args.s, args.q)
 
-    # Temp print
-    for i in range(20):
+    while len(scheduler.finish_queue) < len(processes): # While not all processes are finished
         scheduler.tick()
+
+        # Temp print
         cpu = f"{scheduler.cpu.name} (left {scheduler.cpu.cycles_left})" if scheduler.cpu else "idle"
         ready = ", ".join(f"{p.name}(wait {p.wait_time})" for p in scheduler.ready_queue) or "empty"
         io = ", ".join(f"{p.name}(left {p.io_ticks_left})" for p in scheduler.io_wait_queue) or "empty"
