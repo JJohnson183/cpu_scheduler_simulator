@@ -49,6 +49,16 @@ class Scheduler:
         if self.scheduler_type == "FF":
             return min(self.ready_queue, key=lambda p: p.arrival_time, default=None)
 
+        # Shortest Process: Processes with the smallest cycles needed are selected first
+        if self.scheduler_type == "SP": 
+            return min(self.ready_queue, key=lambda p: p.cycles_needed, default=None)
+
+        # Highest Response Ratio Next: Processes with the highest response ratio are selected first
+        if self.scheduler_type == "HR": 
+            # Response ratio = (wait time + cycles needed) / cycles needed
+            return max(self.ready_queue, key=lambda p: (p.wait_time + p.cycles_needed) / p.cycles_needed, default=None)
+
+
     def _print_tick(self):
         row = f"{self.clock:>3}:"
         for p in self.processes:
