@@ -3,16 +3,51 @@ import argparse
 import csv
 from dataclasses import dataclass, field
 
+#========================================================#
+#==================== Classes =====================#
 @dataclass
 class Process:
     name: str
     arrival_time: int # What tick the process arrives at the CPU
+    start_time: int | None = None # The tick when the process first starts running
+    finish_time: int | None = None # The tick when the process finishes
+    wait_time: int = 0 # The number of ticks spent in the Ready and I/O queues
+
     cycles_needed: int = 0 # How many cpu cycles needed to complete the process
+    cycles_left: int = 0 # How many cpu cycles are left to complete the process
+    
     io_bursts: list[tuple[int, int]] = field(default_factory=list) # List of tuples of showing when the process will do I/O (wait) and for how long
+    io_ticks_left: int = 0 # How many ticks are left in the current I/O burst
 
+class Scheduler:
+    def __init__(self, arrival_queue: list[Process], scheduler_type: str, time_quantum: int = 1):
+        #Setup
+        self.clock = 0 # The current tick of the scheduler
+        self.scheduler_type = scheduler_type # The type of scheduler to use (FF, RR, SP, SR, HR, FB)
+        self.time_quantum = time_quantum # The number of ticks per turn for the RR scheduler
+        self.cpu: Process | None = None # The process currently running on the CPU
 
+        # Queues
+        self.arrival_queue = arrival_queue # The list of processes that have not yet arrived at the CPU
+        self.ready_queue: list[Process] = [] # The list of processes that are ready to run on the CPU
+        self.io_wait_queue: list[Process] = [] # The list of processes that are waiting for I/O to complete
+        self.finish_queue: list[Process] = [] # The list of processes that have completed their CPU cycles
 
+    def select(self):
+        pass
 
+    def tick(self):
+        # 1) Check for new arrivals and move them to the ready queue
+        for process in self.arrival_queue[:]: # [:] = Loop through a copy of the list so removed items don't mess up the looping
+            if process.arrival_time == self.clock:
+                self.ready_queue.append(process)
+                self.arrival_queue.remove(process)
+
+        # 2) Increment the clock
+        self.clock += 1
+
+#========================================================#
+#==================== Main Function =====================#
 # Command line arguments:
 # -v                        (Optional) verbose mode to print the results tick by tick
 # -s <FF|RR|SP|SR|HR|FB>    (Required) What type of scheduler to simulate 
@@ -30,6 +65,7 @@ def main():
     args = parser.parse_args()
 
     print(args.v, args.s, args.q, args.input_file, args.output_file)
+    print()
 
     #2) Read processes from input file and put them into process objects
     processes = []
@@ -47,10 +83,21 @@ def main():
                 io_bursts = (int(row[1]), int(row[2])) # Tuple of (wait start, duration)
                 processes[-1].io_bursts.append(io_bursts) # Add the I/O burst to the last process in the list
             
-
     # Temp print
     for p in processes:
         print(p)
+    print()
+
+    #3) Create the scheduler object and run the simulation
+    scheduler = Scheduler(processes, args.s, args.q)
+
+    # Temp print
+    for i in range(10):
+        scheduler.tick()
+        print(f"Clock: {scheduler.clock}")
+        print(f"Arrival Queue: {[p.name for p in scheduler.arrival_queue]}")
+        print(f"Ready Queue: {[p.name for p in scheduler.ready_queue]}")
+        print()
 
 
 
