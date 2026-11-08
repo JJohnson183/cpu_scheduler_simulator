@@ -210,10 +210,12 @@ def main():
     parser = argparse.ArgumentParser(description="CPU scheduler simulator")
     parser.add_argument("-v", action="store_true", help="print results tick by tick")
     parser.add_argument("-s", choices=["FF", "RR", "SP", "SR", "HR", "FB"], default="FF", help="scheduler type")
-    parser.add_argument("-q", type=int, default=1, help="Total ticks per turn (RR)")
+    parser.add_argument("-q", type=int, default=1, help="Total ticks per turn (RR, FB)")
     parser.add_argument("input_file", help="file with the processes to simulate")
     parser.add_argument("output_file", help="file to write results to")
     args = parser.parse_args()
+    if args.s == "FB" and args.q not in [1, 2]: parser.error("FB only accepts -q 1 or -q 2")
+
 
     # 2) Read processes from input file and put them into process objects
     processes = []
