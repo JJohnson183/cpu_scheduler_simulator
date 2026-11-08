@@ -1,5 +1,17 @@
 # By: Jordan Johnson
 import argparse
+import csv
+from dataclasses import dataclass, field
+
+@dataclass
+class Process:
+    name: str
+    arrival_time: int # What tick the process arrives at the CPU
+    cycles_needed: int = 0 # How many cpu cycles needed to complete the process
+    io_bursts: list[tuple[int, int]] = field(default_factory=list) # List of tuples of showing when the process will do I/O (wait) and for how long
+
+
+
 
 # Command line arguments:
 # -v                        (Optional) verbose mode to print the results tick by tick
@@ -19,6 +31,26 @@ def main():
 
     print(args.v, args.s, args.q, args.input_file, args.output_file)
 
+    #2) Read processes from input file and put them into process objects
+    processes = []
+    with open(args.input_file, "r", newline="") as f:
+        for row in csv.reader(f, skipinitialspace=True):
+            if not row: continue # Skip empy rows
+
+            # If the name is empty it is an I/O burst for the previous process, otherwise it is a new process
+            name = row[0]
+            if (name):
+                arrival_time = int(row[1])
+                cycles_needed = int(row[2])
+                processes.append(Process(name, arrival_time, cycles_needed))
+            else:
+                io_bursts = (int(row[1]), int(row[2])) # Tuple of (wait start, duration)
+                processes[-1].io_bursts.append(io_bursts) # Add the I/O burst to the last process in the list
+            
+
+    # Temp print
+    for p in processes:
+        print(p)
 
 
 
